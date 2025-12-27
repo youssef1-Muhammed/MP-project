@@ -1,0 +1,82 @@
+firestore rules:
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // قوانين المفضلة
+    match /favorites/{userId}/items/{productId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // قوانين السلة (Cart)
+    match /carts/{userId}/items/{productId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+  }
+}
+
+firebase rules:
+import 'package:firebase_auth/firebase_auth.dart';
+
+class AuthService {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  // 1. وظيفة استعادة كلمة المرور (Reset Password) - الإضافة الجديدة
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      // بتبعت رابط تغيير الباسورد لإيميل المستخدم
+      await _auth.sendPasswordResetEmail(email: email.trim());
+    } on FirebaseAuthException catch (e) {
+      print("-----------------------------------------");
+      print("Firebase Reset Error: ${e.message}");
+      print("-----------------------------------------");
+      // بنعمل re-throw عشان الشاشة (UI) تقدر تمسك الغلط وتعرضه للمستخدم
+      throw e; 
+    }
+  }
+
+  // وظيفة التسجيل (Sign Up)
+  Future<User?> signUp(String email, String password) async {
+    try {
+      UserCredential result = await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password.trim(),
+      );
+      return result.user;
+    } on FirebaseAuthException catch (e) {
+      print("-----------------------------------------");
+      print("Firebase Error Code: ${e.code}");
+      print("Firebase Error Message: ${e.message}");
+      print("-----------------------------------------");
+      return null;
+    } catch (e) {
+      print("General Error: ${e.toString()}");
+      return null;
+    }
+  }
+
+  // وظيفة تسجيل الدخول (Login)
+  Future<User?> login(String email, String password) async {
+    try {
+      UserCredential result = await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password.trim(),
+      );
+      return result.user;
+    } on FirebaseAuthException catch (e) {
+      print("-----------------------------------------");
+      print("Firebase Login Error: ${e.message}");
+      print("-----------------------------------------");
+      return null;
+    }
+  }
+
+  // وظيفة تسجيل الخروج (Logout)
+  Future<void> signOut() async {
+    await _auth.signOut();
+  }
+
+  // الحصول على المستخدم الحالي
+  User? get currentUser => _auth.currentUser;
+}
